@@ -143,6 +143,14 @@ def q_learning_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
         if decrease_epsilon and _ % (max_iteration / decrease_rate) == 0 and _ > 0:
             epsilon *= 0.99
 
+        if env.is_game_over():
+            if env.is_win() and _ >= test_at_step:
+                win += 1
+            elif env.is_loss() and _ >= test_at_step:
+                loss += 1
+            elif env.is_draw() and _ >= test_at_step:
+                draw += 1
+
         if _ >= test_at_step:
             epsilon = 0.0
 
@@ -163,14 +171,6 @@ def q_learning_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
             reward = env.score()
             state_prime = env.state_id()
             init_Q(state_prime, env, Q)
-
-            if done:
-                if env.is_win() and _ >= test_at_step:
-                    win += 1
-                elif env.is_loss() and _ >= test_at_step:
-                    loss += 1
-                elif env.is_draw() and _ >= test_at_step:
-                    draw += 1
 
             if not done:
                 Q[state][action] += alpha * (reward + (gamma * max(list(Q[state_prime].values())) - Q[state][action]))
@@ -196,11 +196,15 @@ def expected_sarsa_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
     Experiment with different values of hyper parameters and choose the most appropriate combination
     """
     env = TicTacToe()
-    max_iteration = 50000
-    test_at_step = 49000
-    alpha = 0.2
-    epsilon = 0.01
+    max_iteration = 5000000
+    test_at_step = 4900000
+    alpha = 0.5
+    epsilon = 0.001
     gamma = 0.9999
+
+    print("Alpha", alpha)
+    print("Epsilon", epsilon)
+    print("Gamma", gamma)
     Q = {}
 
     win = 0
@@ -214,7 +218,7 @@ def expected_sarsa_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
     decrease_rate = 50
 
     if decrease_epsilon:
-        epsilon = 0.1  # we start with a big epsilon
+        epsilon = 0.5  # we start with a big epsilon
 
     for _ in tqdm(range(max_iteration)):
         rewards_history[_ % 1000] = env.score()
@@ -224,6 +228,14 @@ def expected_sarsa_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
 
         if decrease_epsilon and _ % (max_iteration / decrease_rate) == 0 and _ > 0:
             epsilon *= 0.99
+
+        if env.is_game_over():
+            if env.is_win() and _ >= test_at_step:
+                win += 1
+            elif env.is_loss() and _ >= test_at_step:
+                loss += 1
+            elif env.is_draw() and _ >= test_at_step:
+                draw += 1
 
         if _ >= test_at_step:
             epsilon = 0.0
@@ -246,18 +258,32 @@ def expected_sarsa_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
             state_prime = env.state_id()
             init_Q(state_prime, env, Q)
 
-            if done:
-                if env.is_win() and _ >= test_at_step:
-                    win += 1
-                elif env.is_loss() and _ >= test_at_step:
-                    loss += 1
-                elif env.is_draw() and _ >= test_at_step:
-                    draw += 1
+            actions = env.available_actions_ids()
+            expected_q = 0
 
-            if not done:
-                Q[state][action] += alpha * (reward + (gamma * max(list(Q[state_prime].values())) - Q[state][action]))
-            else:
+            if done:
                 Q[state][action] += alpha * (reward - Q[state][action])
+                state = state_prime
+                continue
+
+            q_max = max(list(Q[state_prime].values()))
+
+            greedy_actions = 0
+            for a in actions:
+                if Q[state_prime][a] == q_max:
+                    greedy_actions += 1
+
+            available_actions_t_count = len(Q[state_prime])
+            non_greedy_action_probability = epsilon / available_actions_t_count
+            greedy_action_probability = 1 - epsilon + epsilon / available_actions_t_count
+
+            for a in actions:
+                if Q[state_prime][a] == q_max:
+                    expected_q += Q[state_prime][a] * greedy_action_probability
+                else:
+                    expected_q += Q[state_prime][a] * non_greedy_action_probability
+
+            Q[state][action] += alpha * (reward + (gamma * expected_q))
 
             state = state_prime
 
@@ -344,8 +370,78 @@ def q_learning_on_secret_env3() -> PolicyAndActionValueFunction:
     Experiment with different values of hyper parameters and choose the most appropriate combination
     """
     env = Env3()
-    # TODO
-    pass
+    max_iteration = 50000
+    test_at_step = 49000
+    alpha = 0.2
+    epsilon = 0.01
+    gamma = 0.9999
+    Q = {}
+
+    win = 0
+    loss = 0
+    draw = 0
+
+    average_rewards = []
+    rewards_history = np.zeros(1000)
+
+    decrease_epsilon = False
+    decrease_rate = 50
+
+    if decrease_epsilon:
+        epsilon = 0.1  # we start with a big epsilon
+
+    for _ in tqdm(range(max_iteration)):
+        rewards_history[_ % 1000] = env.score()
+
+        if _ % 1000 == 0 and _ > 0:
+            average_rewards.append(np.mean(rewards_history))
+
+        if decrease_epsilon and _ % (max_iteration / decrease_rate) == 0 and _ > 0:
+            epsilon *= 0.99
+
+        if env.is_game_over():
+            if env.is_win() and _ >= test_at_step:
+                win += 1
+            elif env.is_loss() and _ >= test_at_step:
+                loss += 1
+            elif env.is_draw() and _ >= test_at_step:
+                draw += 1
+
+        if _ >= test_at_step:
+            epsilon = 0.0
+
+        if _ >= test_at_step:
+            env.reset()
+        else:
+            env.reset_random()
+
+        state = env.state_id()
+        init_Q(state, env, Q)
+
+        while not env.is_game_over():
+            action = choose_action(state, epsilon, env, Q)
+
+            env.act_with_action_id(action)
+
+            done = env.is_game_over()
+            reward = env.score()
+            state_prime = env.state_id()
+            init_Q(state_prime, env, Q)
+
+            if not done:
+                Q[state][action] += alpha * (reward + (gamma * max(list(Q[state_prime].values())) - Q[state][action]))
+            else:
+                Q[state][action] += alpha * (reward - Q[state][action])
+
+            state = state_prime
+
+    print("Win ", win, "/", win + loss + draw)
+    print("Loss ", loss, "/", win + loss + draw)
+    print("Draw ", draw, "/", win + loss + draw)
+
+    plt.plot(average_rewards)
+    plt.show()
+    return PolicyAndActionValueFunction(pi={}, q=Q)
 
 
 def expected_sarsa_on_secret_env3() -> PolicyAndActionValueFunction:
@@ -356,15 +452,111 @@ def expected_sarsa_on_secret_env3() -> PolicyAndActionValueFunction:
     Experiment with different values of hyper parameters and choose the most appropriate combination
     """
     env = Env3()
-    # TODO
-    pass
+    max_iteration = 5000000
+    test_at_step = 4900000
+    alpha = 0.5
+    epsilon = 0.001
+    gamma = 0.9999
+
+    print("Alpha", alpha)
+    print("Epsilon", epsilon)
+    print("Gamma", gamma)
+    Q = {}
+
+    win = 0
+    loss = 0
+    draw = 0
+
+    average_rewards = []
+    rewards_history = np.zeros(1000)
+
+    decrease_epsilon = False
+    decrease_rate = 50
+
+    if decrease_epsilon:
+        epsilon = 0.5  # we start with a big epsilon
+
+    for _ in tqdm(range(max_iteration)):
+        rewards_history[_ % 1000] = env.score()
+
+        if _ % 1000 == 0 and _ > 0:
+            average_rewards.append(np.mean(rewards_history))
+
+        if decrease_epsilon and _ % (max_iteration / decrease_rate) == 0 and _ > 0:
+            epsilon *= 0.99
+
+        if env.is_game_over():
+            if env.is_win() and _ >= test_at_step:
+                win += 1
+            elif env.is_loss() and _ >= test_at_step:
+                loss += 1
+            elif env.is_draw() and _ >= test_at_step:
+                draw += 1
+
+        if _ >= test_at_step:
+            epsilon = 0.0
+
+        if _ >= test_at_step:
+            env.reset()
+        else:
+            env.reset_random()
+
+        state = env.state_id()
+        init_Q(state, env, Q)
+
+        while not env.is_game_over():
+            action = choose_action(state, epsilon, env, Q)
+
+            env.act_with_action_id(action)
+
+            done = env.is_game_over()
+            reward = env.score()
+            state_prime = env.state_id()
+            init_Q(state_prime, env, Q)
+
+            actions = env.available_actions_ids()
+            expected_q = 0
+
+            if done:
+                Q[state][action] += alpha * (reward - Q[state][action])
+                state = state_prime
+                continue
+
+            q_max = max(list(Q[state_prime].values()))
+
+            greedy_actions = 0
+            for a in actions:
+                if Q[state_prime][a] == q_max:
+                    greedy_actions += 1
+
+            available_actions_t_count = len(Q[state_prime])
+            non_greedy_action_probability = epsilon / available_actions_t_count
+            greedy_action_probability = 1 - epsilon + epsilon / available_actions_t_count
+
+            for a in actions:
+                if Q[state_prime][a] == q_max:
+                    expected_q += Q[state_prime][a] * greedy_action_probability
+                else:
+                    expected_q += Q[state_prime][a] * non_greedy_action_probability
+
+            Q[state][action] += alpha * (reward + (gamma * expected_q))
+
+            state = state_prime
+
+    print("Win ", win, "/", win + loss + draw)
+    print("Loss ", loss, "/", win + loss + draw)
+    print("Draw ", draw, "/", win + loss + draw)
+
+    plt.plot(average_rewards)
+    plt.show()
+    return PolicyAndActionValueFunction(pi={}, q=Q)
 
 
 def demo():
-    # sarsa_on_tic_tac_toe_solo()
-    # q_learning_on_tic_tac_toe_solo()
-    # print(expected_sarsa_on_tic_tac_toe_solo())
+    #sarsa_on_tic_tac_toe_solo()
+    #q_learning_on_tic_tac_toe_solo()
+    expected_sarsa_on_tic_tac_toe_solo()
     #
-    print(sarsa_on_secret_env3())
+    #print(sarsa_on_secret_env3())
     # print(q_learning_on_secret_env3())
     # print(expected_sarsa_on_secret_env3())
