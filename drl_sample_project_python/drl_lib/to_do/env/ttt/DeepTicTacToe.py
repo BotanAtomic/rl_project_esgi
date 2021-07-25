@@ -15,6 +15,9 @@ WIN_POSITIONS = [[0, 1, 2], [2, 5, 8], [6, 7, 8], [6, 3, 0], [0, 4, 8], [6, 4, 2
 
 SYMBOLS = [' ', 'X', 'O']
 
+WIN = 1.0
+DRAW = 0.2
+LOSE = -1.0
 
 class DeepTicTacToe(DeepSingleAgentWithDiscreteActionsEnv):
 
@@ -38,13 +41,13 @@ class DeepTicTacToe(DeepSingleAgentWithDiscreteActionsEnv):
         return self.game_over
 
     def is_win(self) -> bool:
-        return self.score() == 2
+        return self.score() == WIN
 
     def is_loss(self) -> bool:
-        return self.score() < 0
+        return self.score() == LOSE
 
     def is_draw(self) -> bool:
-        return self.score() == 1
+        return self.score() == DRAW
 
     def had_win(self, side: float) -> bool:
         for win_position in WIN_POSITIONS:
@@ -65,21 +68,21 @@ class DeepTicTacToe(DeepSingleAgentWithDiscreteActionsEnv):
 
         if self.had_win(X):
             self.game_over = True
-            self.current_score = 2.0
+            self.current_score = WIN
             return
 
         actions = self.available_actions_ids()
 
         if len(actions) == 0:
             self.game_over = True
-            self.current_score = 1.0
+            self.current_score = DRAW
             return
 
         self.map[np.random.choice(actions)] = O
 
         if self.had_win(O):
             self.game_over = True
-            self.current_score = -1.0
+            self.current_score = LOSE
             return
 
     def score(self) -> float:
@@ -99,6 +102,16 @@ class DeepTicTacToe(DeepSingleAgentWithDiscreteActionsEnv):
         self.current_score = 0.0
         for i in range(9):
             self.map[i] = 0
+
+    def reset_random(self):
+        self.reset()
+        turns = np.random.randint(0, 8)
+        for i in range(turns):
+            if not self.is_game_over():
+                self.act_with_action_id(np.random.choice(self.available_actions_ids()))
+
+        if self.is_game_over():
+            self.reset_random()
 
     def view(self):
         print("_______")
