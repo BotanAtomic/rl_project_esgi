@@ -1,7 +1,6 @@
 import numpy as np
 
 from drl_lib.do_not_touch.contracts import DeepSingleAgentWithDiscreteActionsEnv
-import tensorflow as tf
 
 EMPTY = 0.0
 X = 1.0
@@ -11,13 +10,15 @@ O = -1.0
 # 3 4 5
 # 6 7 8
 
-WIN_POSITIONS = [[0, 1, 2], [2, 5, 8], [6, 7, 8], [6, 3, 0], [0, 4, 8], [6, 4, 2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8]]
+WIN_POSITIONS = [[0, 1, 2], [2, 5, 8], [6, 7, 8], [6, 3, 0], [0, 4, 8], [6, 4, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6],
+                 [1, 4, 7], [2, 5, 8]]
 
 SYMBOLS = [' ', 'X', 'O']
 
 WIN = 1.0
 DRAW = 0.2
-LOSE = -1.0
+LOSE = -10.0
+
 
 class DeepTicTacToe(DeepSingleAgentWithDiscreteActionsEnv):
 

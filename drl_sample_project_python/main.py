@@ -10,5 +10,5 @@ if __name__ == "__main__":
     #dynamic_programming.demo()
     #monte_carlo_methods.demo()
     #temporal_difference_learning.demo()
-    deep_reinforcement_learning.demo()
-    #policy_gradient_methods.demo()
+    #deep_reinforcement_learning.demo()
+    policy_gradient_methods.demo()

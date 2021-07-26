@@ -6,6 +6,8 @@ import numpy as np
 import tqdm
 import random
 
+from matplotlib import pyplot as plt
+
 from .env.ttt.DeepTicTacToe import DeepTicTacToe
 from ..do_not_touch.deep_single_agent_with_discrete_actions_env_wrapper import Env5
 
@@ -57,7 +59,7 @@ def predict(nn, state, available_actions):
 
 
 def episodic_semi_gradient_sarsa_on_tic_tac_toe_solo() -> DeepQNetwork:
-    #tf.config.set_visible_devices([], 'GPU')
+    tf.config.set_visible_devices([], 'GPU')
     """
     Creates a TicTacToe Solo environment (Single player versus Uniform Random Opponent)
     Launches a episodic semi gradient sarsa Algorithm in order to find the optimal epsilon-greedy action_value function
@@ -69,18 +71,23 @@ def episodic_semi_gradient_sarsa_on_tic_tac_toe_solo() -> DeepQNetwork:
     pre_warm = 100
     epsilon = 0.5
     gamma = 0.9999
-    max_episodes_count = 200000
-    print_every_n_episodes = 500
+    max_episodes_count = 40000
+    print_every_n_episodes = 100
 
     win = 0
     lose = 0
     draw = 0
 
+    wins = []
+    loses = []
+    draws = []
+    epsilons = []
+
     state_description_length = env.state_description_length()
     max_actions_count = env.max_actions_count()
     q = tf.keras.Sequential(
         [
-            tf.keras.layers.Conv2D(128, kernel_size=(2, 2), input_shape=(3, 3, 1), activation="relu"),
+            tf.keras.layers.Conv2D(64, kernel_size=(2, 2), input_shape=(3, 3, 1), activation="relu"),
             tf.keras.layers.MaxPooling2D(pool_size=(1, 1)),
             tf.keras.layers.Conv2D(64, kernel_size=(2, 2), activation="relu"),
             tf.keras.layers.MaxPooling2D(pool_size=(1, 1)),
@@ -97,85 +104,101 @@ def episodic_semi_gradient_sarsa_on_tic_tac_toe_solo() -> DeepQNetwork:
         print("Restore model")
         #test_nn(env, state_description_length, max_actions_count, q)
 
-    for episode_id in tqdm.tqdm(range(max_episodes_count)):
-        if np.random.uniform(0.0, 1.0) > 0.5:
-            env.reset_random()
-        else:
-            env.reset()
-
-        # if episode_id == 1000:
-        #     epsilon = 0.05
-        if epsilon > 0.02:
-            epsilon = epsilon * 0.9997
-
-        while not env.is_game_over():
-            s = env.state_description().reshape((1, 3, 3, 1))
-            available_actions = env.available_actions_ids()
-
-            if episode_id < pre_warm or np.random.uniform(0.0, 1.0) < epsilon:
-                chosen_action = np.random.choice(available_actions)
+    try:
+        for episode_id in tqdm.tqdm(range(max_episodes_count)):
+            if np.random.uniform(0.0, 1.0) > 0.5:
+                env.reset_random()
             else:
-                chosen_action = predict(q, s, available_actions)
+                env.reset()
 
-            previous_score = env.score()
-            env.act_with_action_id(chosen_action)
-            r = env.score() - previous_score
-            s_p = env.state_description().reshape((1, 3, 3, 1))
+            # if episode_id == 1000:
+            #     epsilon = 0.05
+            if epsilon > 0.02:
+                epsilons.append(epsilon)
+                epsilon = epsilon * 0.9997
 
-            if env.is_game_over():
+            while not env.is_game_over():
+                s = env.state_description().reshape((1, 3, 3, 1))
+                available_actions = env.available_actions_ids()
+
+                if episode_id < pre_warm or np.random.uniform(0.0, 1.0) < epsilon:
+                    chosen_action = np.random.choice(available_actions)
+                else:
+                    chosen_action = predict(q, s, available_actions)
+
+                previous_score = env.score()
+                env.act_with_action_id(chosen_action)
+                r = env.score() - previous_score
+                s_p = env.state_description().reshape((1, 3, 3, 1))
+
+                if env.is_game_over():
+                    target = np.zeros(max_actions_count)
+                    target[chosen_action] = r
+                    q.train_on_batch(s, target.reshape(-1, 9))
+                    if env.is_win():
+                        win += 1
+                    elif env.is_draw():
+                        draw += 1
+                    elif env.is_loss():
+                        lose += 1
+                    if episode_id % print_every_n_episodes == 0:
+                        # env.view()
+                        # print(f'Chosen action : {chosen_action} | score: {target}')
+                        # print(f'Chosen action value : {chosen_action_q_value} [{all_q_values}]')
+                        # print("Score:", "win" if env.is_win() else "lose" if env.is_loss() else "draw")
+                        print("\nWin:", win, " | Lose :", lose, " | Draw:", draw, " /// Eps:", epsilon)
+                        wins.append(win)
+                        loses.append(lose)
+                        draws.append(draw)
+                        win = 0
+                        draw = 0
+                        lose = 0
+                    break
+
+                next_available_actions = env.available_actions_ids()
+
+                if episode_id < pre_warm or np.random.uniform(0.0, 1.0) < epsilon:
+                    next_chosen_action = np.random.choice(next_available_actions)
+                else:
+                    next_chosen_action = None
+                    next_chosen_action_q_value = None
+                    q_values_ = np.squeeze(q.predict(s_p))
+                    for a in next_available_actions:
+                        p = q_values_[a]
+                        if next_chosen_action is None or next_chosen_action_q_value < p:
+                            next_chosen_action = a
+                            next_chosen_action_q_value = p
+
+                next_chosen_action_q_value = np.squeeze(q.predict(s_p))[next_chosen_action]
                 target = np.zeros(max_actions_count)
-                target[chosen_action] = r
+                target[next_chosen_action] = r + gamma * next_chosen_action_q_value
                 q.train_on_batch(s, target.reshape(-1, 9))
-                if env.is_win():
-                    win += 1
-                elif env.is_draw():
-                    draw += 1
-                elif env.is_loss():
-                    lose += 1
-                if episode_id % print_every_n_episodes == 0:
-                    # env.view()
-                    # print(f'Chosen action : {chosen_action} | score: {target}')
-                    # print(f'Chosen action value : {chosen_action_q_value} [{all_q_values}]')
-                    # print("Score:", "win" if env.is_win() else "lose" if env.is_loss() else "draw")
-                    print("\nWin:", win, " | Lose :", lose, " | Draw:", draw, " /// Eps:", epsilon)
-                    win = 0
-                    draw = 0
-                    lose = 0
-                break
 
-            next_available_actions = env.available_actions_ids()
+            if episode_id % 1000 == 0:
+                q.save_weights("semi_gradient_sarsa.h5")
 
-            if episode_id < pre_warm or np.random.uniform(0.0, 1.0) < epsilon:
-                next_chosen_action = np.random.choice(next_available_actions)
-            else:
-                next_chosen_action = None
-                next_chosen_action_q_value = None
-                q_values_ = np.squeeze(q.predict(s_p))
-                for a in next_available_actions:
-                    p = q_values_[a]
-                    if next_chosen_action is None or next_chosen_action_q_value < p:
-                        next_chosen_action = a
-                        next_chosen_action_q_value = p
+        q.save_weights("semi_gradient_sarsa.h5")
+    except KeyboardInterrupt:
+        print("Manual end")
 
-            next_chosen_action_q_value = np.squeeze(q.predict(s_p))[next_chosen_action]
-            target = np.zeros(max_actions_count)
-            target[next_chosen_action] = r + gamma * next_chosen_action_q_value
-            q.train_on_batch(s, target.reshape(-1, 9))
+    plt.plot(wins, label='Win')
+    plt.plot(loses, label='Lose')
+    plt.plot(draws, label='Draw')
+    plt.legend(['Win', 'Lose', 'Draw'])
+    plt.show()
 
-        if episode_id % 1000 == 0:
-            q.save_weights("semi_gradient_sarsa.h5")
-
-    q.save_weights("semi_gradient_sarsa.h5")
+    plt.plot(epsilons)
+    plt.show()
     pass
 
 
 def replay(memory, batch_size, gamma, model):
-    min_batch = random.sample(memory, batch_size)
-    states = np.empty((batch_size, 9))
-    targets = np.empty((batch_size, 9))
+    mini_batch = random.sample(memory, batch_size)
+    states = []
+    targets = []
 
-    targets_f = model.predict(np.array([s[0] for s in min_batch]).reshape((batch_size, 3, 3, 1)))
-    for i, (state, action, reward, next_state, done) in enumerate(min_batch):
+    targets_f = model.predict(np.array([s[0] for s in mini_batch]).reshape((batch_size, 3, 3, 1)))
+    for i, (state, action, reward, next_state, done) in enumerate(mini_batch):
         target = reward
         if not done:
             target = (reward + gamma *
@@ -183,12 +206,12 @@ def replay(memory, batch_size, gamma, model):
 
         target_f = targets_f[i]
         target_f[action] = target
-        targets[i] = target_f
-        states[i] = state
+        targets.append(target_f.reshape(-1, 9))
+        states.append(state)
 
     model.fit(
-        states,
-        targets,
+        np.array(states).reshape((batch_size, 3, 3, 1)),
+        np.array(targets).reshape((batch_size, -1, 9)),
         batch_size=batch_size,
         epochs=1,
         verbose=0
@@ -202,13 +225,12 @@ def deep_q_learning_on_tic_tac_toe_solo() -> DeepQNetwork:
     Returns the optimal action_value function (Q(w)(s,a))
     Experiment with different values of hyper parameters and choose the most appropriate combination
     """
-    tf.config.set_visible_devices([], 'GPU')
     env = DeepTicTacToe()
     pre_warm = 50
     epsilon = 0.6
-    gamma = 0.995
+    gamma = 0.9995
     max_episodes_count = 50000
-    print_every_n_episodes = 500
+    print_every_n_episodes = 100
     batch_size = 64
 
     win = 0
@@ -221,9 +243,9 @@ def deep_q_learning_on_tic_tac_toe_solo() -> DeepQNetwork:
     max_actions_count = env.max_actions_count()
     q = tf.keras.Sequential(
         [
-            tf.keras.layers.Conv2D(128, kernel_size=(2, 2), input_shape=(3, 3, 1), activation="relu"),
+            tf.keras.layers.Conv2D(64, kernel_size=(2, 2), input_shape=(3, 3, 1), activation="relu"),
             tf.keras.layers.MaxPooling2D(pool_size=(1, 1)),
-            tf.keras.layers.Conv2D(64, kernel_size=(2, 2), activation="relu"),
+            tf.keras.layers.Conv2D(32, kernel_size=(2, 2), activation="relu"),
             tf.keras.layers.MaxPooling2D(pool_size=(1, 1)),
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(9, activation="softmax"),
@@ -278,7 +300,7 @@ def deep_q_learning_on_tic_tac_toe_solo() -> DeepQNetwork:
                     lose = 0
                 break
 
-            if len(memory) > batch_size and i % 2 == 0:
+            if len(memory) > batch_size and i % 4 == 0:
                 replay(memory, batch_size, gamma, q)
 
             if episode_id % 100 == 0:
@@ -420,9 +442,9 @@ def deep_q_learning_on_secret_env5() -> DeepQNetwork:
 
 
 def demo():
-    #print(episodic_semi_gradient_sarsa_on_tic_tac_toe_solo())
+    print(episodic_semi_gradient_sarsa_on_tic_tac_toe_solo())
 
-    print(deep_q_learning_on_tic_tac_toe_solo())
+    #print(deep_q_learning_on_tic_tac_toe_solo())
     #
     # print(episodic_semi_gradient_sarsa_on_pac_man())
     # print(deep_q_learning_on_pac_man())

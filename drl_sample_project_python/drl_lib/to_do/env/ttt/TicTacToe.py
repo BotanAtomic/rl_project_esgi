@@ -2,6 +2,11 @@ import numpy as np
 
 from drl_lib.do_not_touch.contracts import SingleAgentEnv
 
+def is_int(item) -> bool:
+    if type(item) == int:
+        return True
+    return item.lstrip('-+').isdigit()
+
 EMPTY = 0.0
 X = 1.0
 O = 2.0
@@ -70,6 +75,36 @@ class TicTacToe(SingleAgentEnv):
 
         self.map[np.random.choice(actions)] = O
 
+        if self.had_win(O):
+            self.game_over = True
+            self.current_score = -100.0
+            return
+
+    def act_with_action_id_real(self, action_id: int):
+        assert (len(self.map) > action_id)
+        assert (self.map[action_id] == EMPTY)
+        assert not self.game_over
+
+        self.map[action_id] = X
+
+        if self.had_win(X):
+            self.game_over = True
+            self.current_score = 10.0
+            return
+
+        actions = self.available_actions_ids()
+
+        if len(actions) == 0:
+            self.game_over = True
+            self.current_score = 1.0
+            return
+
+        self.view()
+
+        action = input("Select action (1 - 9)")
+
+        self.map[int(action) - 1] = O
+        self.view()
         if self.had_win(O):
             self.game_over = True
             self.current_score = -100.0

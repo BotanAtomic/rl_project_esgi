@@ -18,7 +18,7 @@ def init_Q(state, env: SingleAgentEnv, Q: Dict[int, Dict[int, float]]):
 
 
 def choose_action(state, epsilon, env: SingleAgentEnv, Q: Dict[int, Dict[int, float]]):
-    if np.random.uniform(0, 1) < epsilon:
+    if np.random.uniform(0, 1) < epsilon or state not in Q:
         action = np.random.choice(env.available_actions_ids(), 1)[0]
     else:
         action = max(Q[state], key=Q[state].get)
@@ -103,6 +103,15 @@ def sarsa_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
     print("Draw ", draw, "/", win + loss + draw)
     plt.plot(average_rewards)
     plt.show()
+
+    play = True
+    while play:
+        env.reset()
+        while not env.is_game_over():
+            state = env.state_id()
+            action = choose_action(state, 0, env, Q)
+            env.act_with_action_id_real(action)
+        play = input("Play again ? (Y/n)") == 'Y'
     return PolicyAndActionValueFunction(pi={}, q=Q)
 
 
@@ -114,8 +123,8 @@ def q_learning_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
     Experiment with different values of hyper parameters and choose the most appropriate combination
     """
     env = TicTacToe()
-    max_iteration = 50000
-    test_at_step = 49000
+    max_iteration = 60000
+    test_at_step = 50000
     alpha = 0.2
     epsilon = 0.01
     gamma = 0.9999
@@ -124,6 +133,10 @@ def q_learning_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
     win = 0
     loss = 0
     draw = 0
+
+    wins = []
+    loses = []
+    draws = []
 
     average_rewards = []
     rewards_history = np.zeros(1000)
@@ -144,12 +157,21 @@ def q_learning_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
             epsilon *= 0.99
 
         if env.is_game_over():
-            if env.is_win() and _ >= test_at_step:
+            if env.is_win():
                 win += 1
-            elif env.is_loss() and _ >= test_at_step:
+            elif env.is_loss():
                 loss += 1
-            elif env.is_draw() and _ >= test_at_step:
+            elif env.is_draw():
                 draw += 1
+
+            if _ % 1000 == 0:
+                wins.append(win / 10)
+                draws.append(draw / 10)
+                loses.append(loss / 10)
+
+                win = 0
+                loss = 0
+                draw = 0
 
         if _ >= test_at_step:
             epsilon = 0.0
@@ -179,12 +201,26 @@ def q_learning_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
 
             state = state_prime
 
-    print("Win ", win, "/", win + loss + draw)
-    print("Loss ", loss, "/", win + loss + draw)
-    print("Draw ", draw, "/", win + loss + draw)
+    print("Lose ", loss)
+
+    plt.plot(wins, label='Win')
+    plt.plot(loses, label='Lose')
+    plt.plot(draws, label='Draw')
+    plt.legend(['Win', 'Lose', 'Draw'])
+    plt.show()
 
     plt.plot(average_rewards)
     plt.show()
+
+    play = True
+    while play:
+        env.reset()
+        while not env.is_game_over():
+            state = env.state_id()
+            action = choose_action(state, 0, env, Q)
+            env.act_with_action_id_real(action)
+        play = input("Play again ? (Y/n)") == 'Y'
+
     return PolicyAndActionValueFunction(pi={}, q=Q)
 
 
@@ -293,6 +329,15 @@ def expected_sarsa_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
 
     plt.plot(average_rewards)
     plt.show()
+
+    play = True
+    while play:
+        env.reset()
+        while not env.is_game_over():
+            state = env.state_id()
+            action = choose_action(state, 0, env, Q)
+            env.act_with_action_id_real(action)
+        play = input("Play again ? (Y/n)") == 'Y'
     return PolicyAndActionValueFunction(pi={}, q=Q)
 
 
@@ -554,8 +599,8 @@ def expected_sarsa_on_secret_env3() -> PolicyAndActionValueFunction:
 
 def demo():
     #sarsa_on_tic_tac_toe_solo()
-    #q_learning_on_tic_tac_toe_solo()
-    expected_sarsa_on_tic_tac_toe_solo()
+    q_learning_on_tic_tac_toe_solo()
+    #expected_sarsa_on_tic_tac_toe_solo()
     #
     #print(sarsa_on_secret_env3())
     # print(q_learning_on_secret_env3())
