@@ -14,12 +14,20 @@ def monte_carlo_es_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
     Returns the Optimal Policy (Pi(s,a)) and its Action-Value function (Q(s,a))
     """
     env = TicTacToe()
-    max_iterations = 30000
+    max_iterations = 15000
     gamma = 0.99999
 
     pi = {}
     q = {}
     returns = {}
+
+    win = 0
+    lose = 0
+    draw = 0
+
+    wins = []
+    loses = []
+    draws = []
 
     average_rewards = []
     rewards_history = np.zeros(100)
@@ -27,8 +35,22 @@ def monte_carlo_es_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
     for _ in tqdm(range(max_iterations)):
         rewards_history[_ % 100] = env.score()
 
+        if env.is_win():
+            win += 1
+        elif env.is_draw():
+            draw += 1
+        elif env.is_loss():
+            lose += 1
+
         if _ % 100 == 0:
             average_rewards.append(np.mean(rewards_history))
+            print("\nWin:", win, " | Lose :", lose, " | Draw:", draw)
+            wins.append(win)
+            loses.append(lose)
+            draws.append(draw)
+            win = 0
+            draw = 0
+            lose = 0
 
         env.reset()
         S = []
@@ -80,6 +102,12 @@ def monte_carlo_es_on_tic_tac_toe_solo() -> PolicyAndActionValueFunction:
 
     plt.plot(average_rewards)
     plt.show()
+    plt.plot(wins, label='Win')
+    plt.plot(loses, label='Lose')
+    plt.plot(draws, label='Draw')
+    plt.legend(['Win', 'Lose', 'Draw'])
+    plt.title("MC ES")
+    plt.show()
     return PolicyAndActionValueFunction(pi, q)
 
 
@@ -92,13 +120,21 @@ def on_policy_first_visit_monte_carlo_control_on_tic_tac_toe_solo() -> PolicyAnd
     Experiment with different values of hyper parameters and choose the most appropriate combination
     """
     env = TicTacToe()
-    max_iterations = 100000
-    epsilon = 0.05
+    max_iterations = 8000
+    epsilon = 0.60
     gamma = 0.99999
 
     pi = {}
     q = {}
     returns = {}
+
+    win = 0
+    lose = 0
+    draw = 0
+
+    wins = []
+    loses = []
+    draws = []
 
     average_rewards = []
     rewards_history = np.zeros(100)
@@ -106,8 +142,23 @@ def on_policy_first_visit_monte_carlo_control_on_tic_tac_toe_solo() -> PolicyAnd
     for _ in tqdm(range(max_iterations)):
         rewards_history[_ % 100] = env.score()
 
+        if env.is_win():
+            win += 1
+        elif env.is_draw():
+            draw += 1
+        elif env.is_loss():
+            lose += 1
+
+        epsilon *= 0.999
         if _ % 100 == 0:
             average_rewards.append(np.mean(rewards_history))
+            print("\nWin:", win, " | Lose :", lose, " | Draw:", draw, " | Eps:", epsilon)
+            wins.append(win)
+            loses.append(lose)
+            draws.append(draw)
+            win = 0
+            draw = 0
+            lose = 0
 
         env.reset()
         S = []
@@ -164,6 +215,12 @@ def on_policy_first_visit_monte_carlo_control_on_tic_tac_toe_solo() -> PolicyAnd
 
     plt.plot(average_rewards)
     plt.show()
+    plt.plot(wins, label='Win')
+    plt.plot(loses, label='Lose')
+    plt.plot(draws, label='Draw')
+    plt.legend(['Win', 'Lose', 'Draw'])
+    plt.title("MC on-policy")
+    plt.show()
     return PolicyAndActionValueFunction(pi, q)
 
 
@@ -183,11 +240,21 @@ def off_policy_monte_carlo_control_on_tic_tac_toe_solo() -> PolicyAndActionValue
     pi = {}
     b = {}
 
+    win = 0
+    lose = 0
+    draw = 0
+
+    wins = []
+    loses = []
+    draws = []
+
     for _ in tqdm(range(max_iterations)):
-        env.reset()
         S = []
         A = []
         R = []
+
+        env.reset()
+
         while not env.is_game_over():
             s = env.state_id()
             S.append(s)
@@ -231,6 +298,36 @@ def off_policy_monte_carlo_control_on_tic_tac_toe_solo() -> PolicyAndActionValue
                 break
             W = W * (1/b[s_t][a_t])
 
+    for i in range(3000):
+        env.reset()
+        while not env.is_game_over():
+            s = env.state_id()
+            chosen_action = max(q[s], key=q[s].get)
+            env.act_with_action_id(chosen_action)
+
+            if env.is_game_over():
+                if env.is_win():
+                    win += 1
+                elif env.is_draw():
+                    draw += 1
+                elif env.is_loss():
+                    lose += 1
+
+                if i % 100 == 0:
+                    print("\nWin:", win, " | Lose :", lose, " | Draw:", draw)
+                    wins.append(win)
+                    loses.append(lose)
+                    draws.append(draw)
+                    win = 0
+                    draw = 0
+                    lose = 0
+
+    plt.plot(wins, label='Win')
+    plt.plot(loses, label='Lose')
+    plt.plot(draws, label='Draw')
+    plt.legend(['Win', 'Lose', 'Draw'])
+    plt.title("MC off-policy")
+    plt.show()
     return PolicyAndActionValueFunction(pi, q)
 
 
@@ -319,7 +416,7 @@ def on_policy_first_visit_monte_carlo_control_on_secret_env2() -> PolicyAndActio
     """
     env = Env2()
     max_iterations = 30000
-    epsilon = 0.05
+    epsilon = 0.80
     gamma = 0.99999
 
     pi = {}
@@ -339,6 +436,7 @@ def on_policy_first_visit_monte_carlo_control_on_secret_env2() -> PolicyAndActio
         S = []
         A = []
         R = []
+        epsilon *= 0.99
         while not env.is_game_over():
             s = env.state_id()
             S.append(s)
@@ -401,7 +499,7 @@ def off_policy_monte_carlo_control_on_secret_env2() -> PolicyAndActionValueFunct
     Experiment with different values of hyper parameters and choose the most appropriate combination
     """
     env = Env2()
-    max_iterations = 30000
+    max_iterations = 5000
     gamma = 0.99999
 
     q = {}
@@ -462,9 +560,9 @@ def off_policy_monte_carlo_control_on_secret_env2() -> PolicyAndActionValueFunct
 
 
 def demo():
-    print(monte_carlo_es_on_tic_tac_toe_solo())
-    #print(on_policy_first_visit_monte_carlo_control_on_tic_tac_toe_solo())
-    #print(off_policy_monte_carlo_control_on_tic_tac_toe_solo())
+    #monte_carlo_es_on_tic_tac_toe_solo()
+    #on_policy_first_visit_monte_carlo_control_on_tic_tac_toe_solo()
+    off_policy_monte_carlo_control_on_tic_tac_toe_solo()
 
     #print(monte_carlo_es_on_secret_env2())
     #print(on_policy_first_visit_monte_carlo_control_on_secret_env2())
