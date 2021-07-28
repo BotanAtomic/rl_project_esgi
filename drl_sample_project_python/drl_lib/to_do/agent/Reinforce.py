@@ -52,13 +52,12 @@ class PGAgent:
         reward_sum = 0
         discounted_rewards = []
 
-        for reward in self.rewards[::-1]:  # reverse buffer r
+        for reward in self.rewards[::-1]:
             reward_sum = reward + self.gamma * reward_sum
             discounted_rewards.append(reward_sum)
 
         discounted_rewards.reverse()
         discounted_rewards = np.array(discounted_rewards)
-        # standardise the rewards
         discounted_rewards -= np.mean(discounted_rewards)
         discounted_rewards /= np.std(discounted_rewards)
         states = np.vstack(self.states)
