@@ -15,13 +15,9 @@ import tensorflow as tf
 
 
 class DeepQNetwork:
-    """
-    Contains the weights, structure of the q_network
-    """
-    pass
+    file_path = ""
 
-
-def test_nn(env, state_description_length, max_actions_count, q):
+def test_nn(env, q):
     win = 0
     lose = 0
     draw = 0
@@ -142,10 +138,6 @@ def episodic_semi_gradient_sarsa_on_tic_tac_toe_solo() -> DeepQNetwork:
                     elif env.is_loss():
                         lose += 1
                     if episode_id % print_every_n_episodes == 0:
-                        # env.view()
-                        # print(f'Chosen action : {chosen_action} | score: {target}')
-                        # print(f'Chosen action value : {chosen_action_q_value} [{all_q_values}]')
-                        # print("Score:", "win" if env.is_win() else "lose" if env.is_loss() else "draw")
                         print("\nWin:", win, " | Lose :", lose, " | Draw:", draw, " /// Eps:", epsilon)
                         wins.append(win)
                         loses.append(lose)
@@ -189,7 +181,9 @@ def episodic_semi_gradient_sarsa_on_tic_tac_toe_solo() -> DeepQNetwork:
 
     plt.plot(epsilons)
     plt.show()
-    pass
+    q_network = DeepQNetwork()
+    q_network.file_path = "semi_gradient_sarsa.h5"
+    return q_network
 
 
 def replay(memory, batch_size, gamma, model):
@@ -306,7 +300,9 @@ def deep_q_learning_on_tic_tac_toe_solo() -> DeepQNetwork:
             if episode_id % 100 == 0:
                 q.save_weights("dql_ttt.h5")
 
-    pass
+    q_network = DeepQNetwork()
+    q_network.file_path = "dql_ttt.h5"
+    return q_network
 
 
 def episodic_semi_gradient_sarsa_on_pac_man() -> DeepQNetwork:
@@ -442,7 +438,7 @@ def deep_q_learning_on_secret_env5() -> DeepQNetwork:
 
 
 def demo():
-    print(episodic_semi_gradient_sarsa_on_tic_tac_toe_solo())
+    episodic_semi_gradient_sarsa_on_tic_tac_toe_solo()
 
     #print(deep_q_learning_on_tic_tac_toe_solo())
     #

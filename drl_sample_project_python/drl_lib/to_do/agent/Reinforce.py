@@ -33,21 +33,19 @@ class PGAgent:
         self.states.append(state)
         self.rewards.append(reward)
 
-    def act(self, state, available_actions):
+    def get_next_action(self, state, available_actions):
         if len(available_actions) == 1:
-            aprob = np.zeros(self.model.layers[-1].output_shape[-1])
-            aprob[available_actions[0]] = 1.0
             return available_actions[0]
 
-        aprob = self.model.predict(state, batch_size=1).flatten()
-        for index, probability in enumerate(aprob):
+        model_probabilities = self.model.predict(state, batch_size=1).flatten()
+        for index, probability in enumerate(model_probabilities):
             if index not in available_actions:
-                aprob[index] = 0
+                model_probabilities[index] = 0
 
-        if np.count_nonzero(aprob) < 1:
-            aprob[np.random.choice(available_actions)] = 1.0
+        if np.count_nonzero(model_probabilities) < 1:
+            model_probabilities[np.random.choice(available_actions)] = 1.0
 
-        prob = aprob / np.sum(aprob)
+        prob = model_probabilities / np.sum(model_probabilities)
         return np.random.choice(self.action_size, 1, p=prob)[0]
 
     def update_network(self):

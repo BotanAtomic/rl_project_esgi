@@ -51,7 +51,7 @@ def reinforce_on_tic_tac_toe_solo() -> DeepPiNetwork:
         while not env.is_game_over():
             state = env.state_description().reshape(-1, 9).copy()
             available_actions = env.available_actions_ids()
-            action = agent.act(state, available_actions)
+            action = agent.get_next_action(state, available_actions)
             env.act_with_action_id(action)
             reward = env.score()
             done = env.is_game_over()
